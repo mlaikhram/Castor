@@ -3,6 +3,17 @@ import re
 import sqlite3
 from datetime import datetime
 
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+
 # get field names from castor string
 def parseForFieldNames(text):
     try:
@@ -35,31 +46,31 @@ def createSession(session_name, castor_string):
     cur = session.cursor()
     uncleaned_field_names = parseForFieldNames(castor_string)
     field_names = [field.split('(')[0] for field in uncleaned_field_names]
-    print(field_names)
+    cprint(field_names)
     create_table = "create table dam (log_name, line_number"
     for field in field_names:
         create_table += ", {}".format(field)
     create_table += ")"
-    print(create_table)
+    cprint(create_table)
     cur.execute(create_table)
     return session
 
 
 def rebuildDate(entry_map, date_map):
     rebuilt_map = entry_map
-    # print(rebuilt_map)
+    # cprint(rebuilt_map)
     for field_name,datetime_format in date_map.items():
         rebuilt_datetime = datetime_format
         components = re.findall(r'%([a-zA-Z])', datetime_format)
         for component in components:
             entry_key = "{}__{}__".format(field_name, component)
             entry_val = entry_map[entry_key]
-            # print("entry: {}:{}".format(entry_key, entry_val))
+            # cprint("entry: {}:{}".format(entry_key, entry_val))
             rebuilt_datetime = rebuilt_datetime.replace("%{}".format(component), entry_val)
             del rebuilt_map[entry_key]
-        # print(rebuilt_datetime)
+        # cprint(rebuilt_datetime)
         rebuilt_map[field_name] = rebuilt_datetime
-    # print(rebuilt_map)
+    # cprint(rebuilt_map)
     return rebuilt_map
             
 
@@ -73,7 +84,7 @@ def addEntry(session, entry_map, file_name, line_num):
         insert += ", {}".format(field)
         valueArr.append(value)
     insert += ")" + values
-    # print("insert: " + insert)
+    # cprint("insert: " + insert)
     cur.execute(insert, tuple(valueArr))
     session.commit()
 
@@ -90,19 +101,23 @@ def addLine(session, line, format_string, date_map, file_name, line_num):
 
 def addLog(session, log_file, format_string, date_map):
     with open(log_file, 'r') as fp:
-        print("Adding {} to dam...".format(log_file))
+        cprint("Adding {} to dam...".format(log_file))
         line = fp.readline()
         line_num = 1
         while line:
             try:
                 addLine(session, line, format_string, date_map, log_file, line_num)
             except Exception as e:
-                print('Could not parse line {} in {}'.format(line_num, log_file))
-                print(line)
-                print(e)
+                cprint('Could not parse line {} in {}'.format(line_num, log_file))
+                cprint(line)
+                cprint(e)
             line_num += 1
             line = fp.readline()
-        print("Done")
+        cprint("Done")
+
+
+def cprint(text):
+    print("{}[Castor]{} {}".format(bcolors.OKBLUE, bcolors.ENDC, text))
 
 
 if __name__ == '__main__':
@@ -111,14 +126,14 @@ if __name__ == '__main__':
     castor_string = "{date(%b %d %H:%M:%S)} {hostname} {service}: {message}"
 
     # datetime_object = datetime.strptime(line, format_string)
-    # print(datetime_object)
+    # cprint(datetime_object)
 
     session = createSession('test', castor_string)
 
     format_string, date_map = castorToFormatString(castor_string)
 
-    print("format_string: " + format_string)
-    print("date_map: " + str(date_map))
+    cprint("format_string: " + format_string)
+    cprint("date_map: " + str(date_map))
 
     addLog(session, 'syslog', format_string, date_map)
     addLog(session, 'auth.log', format_string, date_map)
