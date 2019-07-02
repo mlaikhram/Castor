@@ -1,7 +1,17 @@
 import parse
 import re
 import sqlite3
+import os
+from glob import glob
 from datetime import datetime
+from log_adder import *
+
+castor_string_linux = "{date(%b %d %H:%M:%S)} {hostname} {service}: {message}"
+
+global dam
+dam = None
+global dam_name 
+dam_name = None
 
 class bcolors:
     HEADER = '\033[95m'
@@ -14,130 +24,147 @@ class bcolors:
     UNDERLINE = '\033[4m'
 
 
-# get field names from castor string
-def parseForFieldNames(text):
-    try:
-        field_names = re.findall('{(.+?)}', text)
-        return field_names
+def castor_raw():
+    global dam
+    global dam_name
+    if dam is None:
+        return input("{}[Castor]{} ".format(bcolors.OKBLUE, bcolors.ENDC))
+    else:
+        return input("{}[Castor]{}{}[{}]{} ".format(bcolors.OKBLUE, 
+                                                        bcolors.ENDC, 
+                                                        bcolors.WARNING, 
+                                                        dam_name, 
+                                                        bcolors.ENDC))
 
-    except AttributeError:
-        raise Exception('castor_string "' + castor_string + '" does not contain any fields')
 
-
-# reformat castor string to allow the datetimes to be parsed properly
-def castorToFormatString(text):
-    fields = parseForFieldNames(text)
-    reformatted = text
+def dam_commands(command):
+    if command[0] == "list":
+        print("Here are all of your dam files:")
     
-    date_field_format = "{}({})"
-    date_field_map = {}
-    for field_name in fields:
-        result = parse.parse(date_field_format, field_name)
-        if result is not None:
-            date_field_map[result[0]] = result[1]
-            generic_date_string = re.sub(r'%([a-zA-Z])', '{' + result[0] + r'__\1__}', result[1])
-            reformatted = reformatted.replace('{' + field_name + '}', generic_date_string)
+    elif command[0] == "create":
+        if len(command) < 3:
+            print("You must provide a name of the dam to create.")
+        else:
+            if dam is not None:
+                dam.close()
+            create_session(command[2], castor_string_linux)
 
-    return reformatted, date_field_map
+    elif command[0] == "load":
+        if len(command) < 3:
+            print("You must provide a name of the dam to load.")
+        else:
+            print("Loading dam {}...".format(command[2]))
+
+    else:
+        print("Invalid usage (show usage here)")
 
 
-def createSession(session_name, castor_string):
+def log_commands(command):
+    global dam
+    global dam_name
+    if dam is None:
+        print("You must create or load a dam in order to interact with logs")
+    elif command[0] == "list":
+        print("Here are all of the log files in this dam:")
+    
+    elif command[0] == "add":
+        if len(command) < 3:
+            print("You must provide a log file (or wildcard) to add.")
+        else:
+            glob_result = glob(command[2], recursive=True)
+            file_names = [path for path in glob_result if os.path.isfile(path)]
+            for name in file_names:
+                print(name)
+
+            print("found {}{}{} {} matching {}.".format(bcolors.FAIL if len(file_names) < 1 else bcolors.OKGREEN,
+                                                   len(file_names), 
+                                                   bcolors.ENDC,
+                                                   "file" if len(file_names) == 1 else "files",
+                                                   command[2]))
+            if len(file_names) < 1:
+                return
+
+            # TODO offer to use a pre-existing castor_string
+            print("Please enter a Castor String to format the {}".format("log" if len(file_names) == 1 else "logs"))
+            castor_string = castor_raw()
+            for name in file_names:
+                add_log(dam, name, castor_string)
+
+    elif command[0] == "delete":
+        if len(command) < 3:
+            print("You must provide a log file to delete.")
+        else:
+            if dam is not None:
+                dam.close()
+            create_session(command[2], castor_string_linux)
+
+    else:
+        print("Invalid usage (show usage here)")
+
+
+def create_session(session_name, castor_string):
+    # TODO check if dam already exists
+    print("creating dam: {}...".format(session_name))
     session = sqlite3.connect(session_name + '.dam')
     cur = session.cursor()
-    uncleaned_field_names = parseForFieldNames(castor_string)
+    uncleaned_field_names = parse_for_field_names(castor_string)
     field_names = [field.split('(')[0] for field in uncleaned_field_names]
-    cprint(field_names)
+    print(field_names)
     create_table = "create table dam (log_name, line_number"
     for field in field_names:
         create_table += ", {}".format(field)
     create_table += ")"
-    cprint(create_table)
+    print(create_table)
     cur.execute(create_table)
-    return session
-
-
-def rebuildDate(entry_map, date_map):
-    rebuilt_map = entry_map
-    # cprint(rebuilt_map)
-    for field_name,datetime_format in date_map.items():
-        rebuilt_datetime = datetime_format
-        components = re.findall(r'%([a-zA-Z])', datetime_format)
-        for component in components:
-            entry_key = "{}__{}__".format(field_name, component)
-            entry_val = entry_map[entry_key]
-            # cprint("entry: {}:{}".format(entry_key, entry_val))
-            rebuilt_datetime = rebuilt_datetime.replace("%{}".format(component), entry_val)
-            del rebuilt_map[entry_key]
-        # cprint(rebuilt_datetime)
-        rebuilt_map[field_name] = rebuilt_datetime
-    # cprint(rebuilt_map)
-    return rebuilt_map
-            
-
-
-def addEntry(session, entry_map, file_name, line_num):
-    cur = session.cursor()
-    insert = "insert into dam (log_name, line_number"
-    values = " values (?, ?" + ", ?" * len(entry_map) + ")"
-    valueArr = [file_name, line_num]
-    for field, value in entry_map.items():
-        insert += ", {}".format(field)
-        valueArr.append(value)
-    insert += ")" + values
-    # cprint("insert: " + insert)
-    cur.execute(insert, tuple(valueArr))
-    session.commit()
-
-
-def addLine(session, line, format_string, date_map, file_name, line_num):
-    parsed = parse.parse(format_string, line)
-    if parsed is not None:
-       entry_map = parsed
-       entry_map = rebuildDate(entry_map.named, date_map)
-       addEntry(session, entry_map, file_name, line_num)
-    else:
-        raise Exception('Could not parse line')
-
-
-def addLog(session, log_file, format_string, date_map):
-    with open(log_file, 'r') as fp:
-        cprint("Adding {} to dam...".format(log_file))
-        line = fp.readline()
-        line_num = 1
-        while line:
-            try:
-                addLine(session, line, format_string, date_map, log_file, line_num)
-            except Exception as e:
-                cprint('Could not parse line {} in {}'.format(line_num, log_file))
-                cprint(line)
-                cprint(e)
-            line_num += 1
-            line = fp.readline()
-        cprint("Done")
-
-
-def cprint(text):
-    print("{}[Castor]{} {}".format(bcolors.OKBLUE, bcolors.ENDC, text))
+    global dam
+    global dam_name
+    dam = session       
+    dam_name = session_name
+    print("dam successfully created! Try adding some log files with the 'add log' command.")
 
 
 if __name__ == '__main__':
+    os.system('clear')
+    print("Welcome to Castor!")
+ 
+    while True:
+        command = castor_raw().split()
 
-    line = "Jun 23 14:07:38 kali systemd[1]: NetworkManager-dispatcher.service: Succeeded."
-    castor_string = "{date(%b %d %H:%M:%S)} {hostname} {service}: {message}"
+        if len(command) == 0:
+            continue
+        
+        if command[0] == "quit":
+            print("Exiting Castor...")
+            if dam is not None:
+                dam.close()
+            break
+
+        if len(command) > 1 and command[1] == "dam":
+            dam_commands(command)
+
+        elif len(command) > 1 and command[1] == "log":
+            log_commands(command)
+
+        else:
+            print("Not a valid command. Type 'help' for a list of commands.")
+        
+
+    # line = "Jun 23 14:07:38 kali systemd[1]: NetworkManager-dispatcher.service: Succeeded."
+    # castor_string = "{date(%b %d %H:%M:%S)} {hostname} {service}: {message}"
 
     # datetime_object = datetime.strptime(line, format_string)
-    # cprint(datetime_object)
+    # print(datetime_object)
 
-    session = createSession('test', castor_string)
+    # session = create_session('test', castor_string)
 
-    format_string, date_map = castorToFormatString(castor_string)
+    # format_string, date_map = castor_to_format_string(castor_string)
 
-    cprint("format_string: " + format_string)
-    cprint("date_map: " + str(date_map))
+    # print("format_string: " + format_string)
+    # print("date_map: " + str(date_map))
 
-    addLog(session, 'syslog', format_string, date_map)
-    addLog(session, 'auth.log', format_string, date_map)
-    addLog(session, 'user.log', format_string, date_map)
-    addLog(session, 'daemon.log', format_string, date_map)
+    # add_log(session, 'syslog', format_string, date_map)
+    # add_log(session, 'auth.log', format_string, date_map)
+    # add_log(session, 'user.log', format_string, date_map)
+    # add_log(session, 'daemon.log', format_string, date_map)
 
-    session.close()
+    # session.close()
