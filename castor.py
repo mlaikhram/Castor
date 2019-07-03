@@ -37,9 +37,28 @@ def castor_raw():
                                                         bcolors.ENDC))
 
 
+def get_dam_format():
+    path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "dams")
+    return path + "/{}.dam"
+
+
+def get_dams():
+    dam_format = get_dam_format()
+    abs_dams = glob(dam_format.format("*"))
+    dams = [parse.parse(dam_format, a_dam)[0] for a_dam in abs_dams]
+    dams.sort()
+    return dams
+
+
 def dam_commands(command):
     if command[0] == "list":
-        print("Here are all of your dam files:")
+        dams = get_dams()
+        for a_dam in dams:
+            print(a_dam)
+        print("Found {}{}{} dam {}.".format(bcolors.FAIL if len(dams) < 1 else bcolors.OKGREEN,
+                                               len(dams), 
+                                               bcolors.ENDC,
+                                               "file" if len(dams) == 1 else "files"))
     
     elif command[0] == "create":
         if len(command) < 3:
@@ -47,13 +66,18 @@ def dam_commands(command):
         else:
             if dam is not None:
                 dam.close()
-            create_session(command[2], castor_string_linux)
+            create_dam(command[2], castor_string_linux)
 
     elif command[0] == "load":
         if len(command) < 3:
             print("You must provide a name of the dam to load.")
         else:
-            print("Loading dam {}...".format(command[2]))
+            if command[2] not in get_dams():
+                print("Could not find dam: {}. Did you mean to create dam?".format(command[2]))
+            else:
+                if dam is not None:
+                    dam.close()
+                load_dam(command[2])
 
     else:
         print("Invalid usage (show usage here)")
@@ -73,10 +97,11 @@ def log_commands(command):
         else:
             glob_result = glob(command[2], recursive=True)
             file_names = [path for path in glob_result if os.path.isfile(path)]
+            file_names.sort()
             for name in file_names:
                 print(name)
 
-            print("found {}{}{} {} matching {}.".format(bcolors.FAIL if len(file_names) < 1 else bcolors.OKGREEN,
+            print("Found {}{}{} {} matching {}.".format(bcolors.FAIL if len(file_names) < 1 else bcolors.OKGREEN,
                                                    len(file_names), 
                                                    bcolors.ENDC,
                                                    "file" if len(file_names) == 1 else "files",
@@ -96,16 +121,16 @@ def log_commands(command):
         else:
             if dam is not None:
                 dam.close()
-            create_session(command[2], castor_string_linux)
+            create_dam(command[2], castor_string_linux)
 
     else:
         print("Invalid usage (show usage here)")
 
 
-def create_session(session_name, castor_string):
+def create_dam(session_name, castor_string):
     # TODO check if dam already exists
-    print("creating dam: {}...".format(session_name))
-    session = sqlite3.connect(session_name + '.dam')
+    print("Creating dam: {}...".format(session_name))
+    session = sqlite3.connect(get_dam_format().format(session_name))
     cur = session.cursor()
     uncleaned_field_names = parse_for_field_names(castor_string)
     field_names = [field.split('(')[0] for field in uncleaned_field_names]
@@ -120,7 +145,19 @@ def create_session(session_name, castor_string):
     global dam_name
     dam = session       
     dam_name = session_name
-    print("dam successfully created! Try adding some log files with the 'add log' command.")
+    print("Dam successfully created! Try adding some log files with the 'add log' command.")
+
+
+def load_dam(session_name):
+    print("Loading dam: {}...".format(session_name))
+    dam_path = get_dam_format().format(session_name)
+    session = sqlite3.connect(get_dam_format().format(session_name))
+    global dam
+    global dam_name
+    dam = session       
+    dam_name = session_name
+    print("Dam successfully loaded!")
+    # TODO print metadata about dam
 
 
 if __name__ == '__main__':
@@ -155,7 +192,7 @@ if __name__ == '__main__':
     # datetime_object = datetime.strptime(line, format_string)
     # print(datetime_object)
 
-    # session = create_session('test', castor_string)
+    # session = create_dam('test', castor_string)
 
     # format_string, date_map = castor_to_format_string(castor_string)
 
