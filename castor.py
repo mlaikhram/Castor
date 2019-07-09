@@ -136,7 +136,7 @@ def log_commands(command):
             glob_result = []
             for pattern in command[2:]:
                 glob_result += glob(pattern, recursive=True)
-            file_names = [path for path in glob_result if os.path.isfile(path)]
+            file_names = [os.path.abspath(path) for path in glob_result if os.path.isfile(path)]
             file_names.sort()
             for name in file_names:
                 print(name)
@@ -149,8 +149,7 @@ def log_commands(command):
                 return
 
             # TODO offer to use a pre-existing castor_string
-            print("Please enter a Castor String to format the {}".format("log" if len(file_names) == 1 else "logs"))
-            castor_string = castor_input()
+            castor_string = input("Please enter a Castor String to format the {}\n".format("log" if len(file_names) == 1 else "logs"))
             for name in file_names:
                 add_log(dam, name, castor_string)
 
@@ -170,6 +169,14 @@ def values_command(command):
         print("You must create or load a dam in order to check field values.")
     elif command[0] in get_cols(dam):
         values = get_distinct_vals(dam, command[0])
+        if len(values) > 20:
+            while True:
+                yn = input("Display all {} results? (y/n) ".format(len(values))).lower()
+                if yn[0] == "y":
+                    break
+                elif yn[0] == "n":
+                    values = []
+                    break
         for value in values:
             print(value)
     else:

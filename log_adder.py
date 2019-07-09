@@ -78,7 +78,7 @@ def add_log(dam, log_file, castor_string):
     with open(log_file, 'r') as fp:
         print("Adding {} to dam...".format(log_file))
         line = fp.readline()
-        line_num = 1
+        line_num = 0
         while line:
             try:
                 add_line(dam, line, format_string, date_map, log_file, line_num)
