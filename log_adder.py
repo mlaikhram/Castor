@@ -81,13 +81,19 @@ def add_log(dam, log_file, castor_string):
         line_num = 0
         while line:
             try:
+                line_num += 1
                 add_line(dam, line, format_string, date_map, log_file, line_num)
             except Exception as e:
                 print('Could not parse line {} in {}'.format(line_num, log_file))
                 print(line)
                 print("Error: {}".format(e))
-            line_num += 1
             line = fp.readline()
         print("Finished parsing {} {}.".format(line_num, "line" if line_num == 1 else "lines"))
+
+        if line_num > 0:
+            cur = dam.cursor()
+            insert_log = "replace into logs(log_name, castor_string, last_line) values (?, ?, ?)"
+            cur.execute(insert_log, tuple([log_file, castor_string, line_num]))
+            dam.commit()
 
 
