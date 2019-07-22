@@ -3,6 +3,7 @@ import re
 import os
 from glob import glob
 from datetime import datetime
+from castor_help import *
 from log_adder import *
 from dam_editor import *
 
@@ -118,7 +119,8 @@ def dam_commands(command):
                         print(field)
 
     else:
-        print("Invalid usage (show usage here)")
+        print("Invalid usage\n")
+        dam_help()
 
 
 def log_commands(command):
@@ -127,7 +129,9 @@ def log_commands(command):
     if dam is None:
         print("You must create or load a dam in order to interact with logs.")
     elif command[0] == "list":
-        print("Here are all of the log files in this dam:")
+        log_names = get_distinct_vals(dam, "log_name")
+        for log_name in log_names:
+             print(log_name)
     
     elif command[0] == "add":
         if len(command) < 3:
@@ -141,15 +145,22 @@ def log_commands(command):
             for name in file_names:
                 print(name)
 
-            print("Found {}{}{} {}.".format(bcolors.RED if len(file_names) < 1 else bcolors.GREEN,
+            print("Found {}{}{} {}.\n".format(bcolors.RED if len(file_names) < 1 else bcolors.GREEN,
                                                    len(file_names), 
                                                    bcolors.ENDC,
                                                    "file" if len(file_names) == 1 else "files"))
             if len(file_names) < 1:
                 return
-
-            # TODO offer to use a pre-existing castor_string
-            castor_string = input("Please enter a Castor String to format the {}\n".format("log" if len(file_names) == 1 else "logs"))
+            
+            prev_strings = get_castor_strings(dam)
+            if len(prev_strings) > 0:
+                print("Castor Strings previously used in this dam:")
+                for prev_string in prev_strings:
+                    print(prev_string)
+                print()
+            castor_string = input("Please enter a Castor String to format the {} or type 'q' to cancel\n".format("log" if len(file_names) == 1 else "logs"))
+            if castor_string.strip() == "q":
+                return
             for name in file_names:
                 add_log(dam, name, castor_string)
 
@@ -160,7 +171,8 @@ def log_commands(command):
             print("to be implemented...")
 
     else:
-        print("Invalid usage (show usage here)")
+        print("Invalid usage\n")
+        log_help()
 
 
 def values_command(command):
@@ -187,6 +199,7 @@ def values_command(command):
 if __name__ == '__main__':
     os.system('clear')
     print("Welcome to Castor!")
+    print("Type 'help' for a list of commands.")
  
     while True:
         command = castor_input().split()
@@ -200,7 +213,10 @@ if __name__ == '__main__':
                 dam.close()
             break
 
-        if command[0] == "fields":
+        if command[0] == "help":
+            all_help()
+
+        elif command[0] == "fields":
             fields_command()
 
         elif command[0] == "sql":

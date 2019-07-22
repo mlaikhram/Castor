@@ -21,7 +21,6 @@ def create_dam(session_name, field_names):
 def load_dam(session_name):
     session = sqlite3.connect(session_name)
     return session
-    # TODO print metadata about dam
 
 
 def get_cols(session):
@@ -36,6 +35,13 @@ def get_meta_cols(session):
     cur.execute("PRAGMA table_info(logs)")
     fields = cur.fetchall()
     return [field[1] for field in fields]
+
+
+def get_castor_strings(session):
+    cur = session.cursor()
+    cur.execute("select distinct castor_string from logs")
+    vals = cur.fetchall()
+    return [val[0] for val in vals]
 
 
 def get_distinct_vals(session, field):
