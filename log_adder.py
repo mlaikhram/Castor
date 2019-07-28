@@ -92,6 +92,11 @@ def add_log(dam, log_file, castor_string):
                 add_line(dam, line, format_string, date_map, log_file, line_num)
                 parsed_lines += 1
             except Exception as e:
+                if line_num - parsed_lines == 3:
+                    print("Suppressing all future errors in this file")
+                if line_num - parsed_lines >= 3:
+                    continue
+
                 print('Could not parse line {} in {}'.format(line_num, log_file))
                 print(line)
                 print("Error: {}".format(e))
@@ -117,5 +122,7 @@ def get_fields_from_castor_string(castor_string):
         else:
             fields.append(field)
     return fields
+
+
 
 

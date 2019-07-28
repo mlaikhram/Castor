@@ -6,9 +6,8 @@ from datetime import datetime
 from castor_help import *
 from log_adder import *
 from dam_editor import *
+from castor_conf_parser import *
 
-castor_string_linux = "{date(%b %d %H:%M:%S)} {hostname} {service}: {message}"
-castor_string_apache = '{hostname} {rfc931} {auth} [{date(%d/%b/%Y:%H:%M:%S)} {date_offset}] "{action}" {return_code} {file_size} "{referrer}" "{platform}"'
 
 global dam
 dam = None
@@ -90,10 +89,6 @@ def dam_commands(command):
                 dam = None
                 dam_name = None
             print("Creating dam: {}...".format(command[2]))
-            # temporary code for linux hard coded format
-            # uncleaned_field_names = parse_for_field_names(castor_string_linux)
-            # field_names = [field.split('(')[0] for field in uncleaned_field_names]
-            # end temporary code
             dam = create_dam(get_dam_format().format(command[2]))
             if dam is not None:
                 dam_name = command[2]
@@ -177,6 +172,33 @@ def log_commands(command):
         log_help()
 
 
+def conf_commands(command):
+    global dam
+    global dam_name
+    if dam is None:
+        print("You must create or load a dam in order to interact with logs.")
+    elif command[0] == "add":
+        if len(command) < 3:
+            print("You must provide a conf file to add")
+        else:
+            try:
+                for begin_name,castor_string,file_names in parseConf(command[2]):
+                    print("adding {} files with Castor String:\n{}\n".format(begin_name, castor_string))
+                    for name in file_names:
+                        try:
+                            add_log(dam, name, castor_string)
+                        except Exception as e:
+                            print("Could not add file {}".format(name))
+                            print(e)
+                    print()
+                print("Finished reading {}".format(command[2]))
+            except Exception:
+                print("Could not find file: {}".format(command[2]))
+    else:
+        print("Invalid usage\n")
+        conf_help()
+
+
 def values_command(command):
     global dam
     if dam is None:
@@ -229,6 +251,9 @@ if __name__ == '__main__':
 
         elif len(command) > 1 and command[1] == "log":
             log_commands(command)
+
+        elif len(command) > 1 and command[1] == "conf":
+            conf_commands(command)
 
         elif len(command) > 1 and command[1] == "values":
             values_command(command)

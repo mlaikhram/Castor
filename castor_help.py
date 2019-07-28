@@ -9,11 +9,10 @@ def dam_help():
 def log_help():
     print("list log\t\t\tList all logs in current dam\n")
     print("add log <FILE> [FILE]...\tAdd logs to current dam (FILE may be in wildcard format)\n")
-    print("delete log <FILE>\t\tDelete log from current dam (FILE must match exactly) [NOT IMPLEMENTED]\n")
 
 
 def conf_help():
-    print("add conf <FILE>\t\t\tAdd conf to current dam (FILE must match exactly) [NOT IMPLEMENTED]\n")
+    print("add conf <FILE>\t\t\tAdd conf to current dam (FILE must match exactly)\n")
 
 
 def fields_help():
