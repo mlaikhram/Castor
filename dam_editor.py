@@ -2,15 +2,10 @@ import sqlite3
 from castor import bcolors
 
 
-def create_dam(session_name, field_names):
+def create_dam(session_name):
     session = sqlite3.connect(session_name)
     cur = session.cursor()
-    print(field_names)
-    create_table = "create table dam (log_name text, line_number numeric"
-    for field in field_names:
-        create_table += ", {}".format(field)
-    create_table += ", PRIMARY KEY (log_name, line_number))"
-    print(create_table)
+    create_table = "create table dam (log_name text, line_number numeric, PRIMARY KEY (log_name, line_number))"
     cur.execute(create_table)
 
     create_table = "create table logs (log_name text PRIMARY KEY, castor_string text, last_line numeric)"
@@ -21,6 +16,12 @@ def create_dam(session_name, field_names):
 def load_dam(session_name):
     session = sqlite3.connect(session_name)
     return session
+
+
+def add_cols(session, cols):
+    cur = session.cursor()
+    for col in cols:
+        cur.execute("alter table dam add column {} text".format(col))
 
 
 def get_cols(session):
@@ -86,7 +87,8 @@ def sql_shell(session):
             print(header)
             results = cur.fetchall()
             for result in results:
-                print(table_format % result)
+                fixed_result = ['Null' if val is None else val for val in result]
+                print(table_format % tuple(fixed_result))
         except Exception as e:
             print(e)
 

@@ -2,6 +2,7 @@ import parse
 import re
 import sqlite3
 from datetime import datetime
+from dam_editor import get_cols, add_cols
 
 # get field names from castor string
 def parse_for_field_names(text):
@@ -75,25 +76,46 @@ def add_line(dam, line, format_string, date_map, file_name, line_num):
 
 def add_log(dam, log_file, castor_string):
     format_string, date_map = castor_to_format_string(castor_string)
+    old_cols = get_cols(dam)
+    current_cols = get_fields_from_castor_string(castor_string)
+    new_cols = [col for col in current_cols if col not in old_cols]
+    add_cols(dam, new_cols)
+
     with open(log_file, 'r') as fp:
         print("Adding {} to dam...".format(log_file))
         line = fp.readline()
         line_num = 0
+        parsed_lines = 0
         while line:
             try:
                 line_num += 1
                 add_line(dam, line, format_string, date_map, log_file, line_num)
+                parsed_lines += 1
             except Exception as e:
                 print('Could not parse line {} in {}'.format(line_num, log_file))
                 print(line)
                 print("Error: {}".format(e))
             line = fp.readline()
-        print("Finished parsing {} {}.".format(line_num, "line" if line_num == 1 else "lines"))
+        print("Successfully parsed {} of {} lines.".format(parsed_lines, line_num))
 
-        if line_num > 0:
+        if parsed_lines > 0:
             cur = dam.cursor()
             insert_log = "replace into logs(log_name, castor_string, last_line) values (?, ?, ?)"
             cur.execute(insert_log, tuple([log_file, castor_string, line_num]))
             dam.commit()
+        else:
+            print("{} was not added".format(log_file))
+
+
+def get_fields_from_castor_string(castor_string):
+    unparsed_fields = castor_string.split('{')[1:]
+    unparsed_fields = [field.split('}')[0] for field in unparsed_fields]
+    fields = []
+    for field in unparsed_fields:
+        if '(' in field:
+            fields.append(field.split('(')[0])
+        else:
+            fields.append(field)
+    return fields
 
 

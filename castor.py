@@ -8,6 +8,7 @@ from log_adder import *
 from dam_editor import *
 
 castor_string_linux = "{date(%b %d %H:%M:%S)} {hostname} {service}: {message}"
+castor_string_apache = '{hostname} {rfc931} {auth} [{date(%d/%b/%Y:%H:%M:%S)} {date_offset}] "{action}" {return_code} {file_size} "{referrer}" "{platform}"'
 
 global dam
 dam = None
@@ -90,10 +91,10 @@ def dam_commands(command):
                 dam_name = None
             print("Creating dam: {}...".format(command[2]))
             # temporary code for linux hard coded format
-            uncleaned_field_names = parse_for_field_names(castor_string_linux)
-            field_names = [field.split('(')[0] for field in uncleaned_field_names]
+            # uncleaned_field_names = parse_for_field_names(castor_string_linux)
+            # field_names = [field.split('(')[0] for field in uncleaned_field_names]
             # end temporary code
-            dam = create_dam(get_dam_format().format(command[2]), field_names)
+            dam = create_dam(get_dam_format().format(command[2]))
             if dam is not None:
                 dam_name = command[2]
                 print("Dam successfully created! Try adding some log files with the 'add log' command.")
@@ -132,6 +133,7 @@ def log_commands(command):
         log_names = get_distinct_vals(dam, "log_name")
         for log_name in log_names:
              print(log_name)
+             # TODO also display last line read up to in log
     
     elif command[0] == "add":
         if len(command) < 3:
@@ -235,22 +237,3 @@ if __name__ == '__main__':
             print("Not a valid command. Type 'help' for a list of commands.")
         
 
-    # line = "Jun 23 14:07:38 kali systemd[1]: NetworkManager-dispatcher.service: Succeeded."
-    # castor_string = "{date(%b %d %H:%M:%S)} {hostname} {service}: {message}"
-
-    # datetime_object = datetime.strptime(line, format_string)
-    # print(datetime_object)
-
-    # session = create_dam('test', castor_string)
-
-    # format_string, date_map = castor_to_format_string(castor_string)
-
-    # print("format_string: " + format_string)
-    # print("date_map: " + str(date_map))
-
-    # add_log(session, 'syslog', format_string, date_map)
-    # add_log(session, 'auth.log', format_string, date_map)
-    # add_log(session, 'user.log', format_string, date_map)
-    # add_log(session, 'daemon.log', format_string, date_map)
-
-    # session.close()
