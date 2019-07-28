@@ -31,25 +31,23 @@ def castor_to_format_string(text):
     return reformatted, date_field_map
 
 
+# rebuild date into proper date format after separating it to properly parse log line
 def rebuild_date(entry_map, date_map):
     rebuilt_map = entry_map
-    # print(rebuilt_map)
     for field_name,datetime_format in date_map.items():
         rebuilt_datetime = datetime_format
         components = re.findall(r'%([a-zA-Z])', datetime_format)
         for component in components:
             entry_key = "{}__{}__".format(field_name, component)
             entry_val = entry_map[entry_key]
-            # print("entry: {}:{}".format(entry_key, entry_val))
             rebuilt_datetime = rebuilt_datetime.replace("%{}".format(component), entry_val)
             del rebuilt_map[entry_key]
-        # print(rebuilt_datetime)
         rebuilt_map[field_name] = rebuilt_datetime
-    # print(rebuilt_map)
     return rebuilt_map
             
 
 
+# insert entry map into the dam
 def add_entry(dam, entry_map, file_name, line_num):
     cur = dam.cursor()
     insert = "insert into dam (log_name, line_number"
@@ -59,11 +57,11 @@ def add_entry(dam, entry_map, file_name, line_num):
         insert += ", {}".format(field)
         valueArr.append(value)
     insert += ")" + values
-    # print("insert: " + insert)
     cur.execute(insert, tuple(valueArr))
     dam.commit()
 
 
+# convert log file line into an entry map to be inserted into the dam
 def add_line(dam, line, format_string, date_map, file_name, line_num):
     parsed = parse.parse(format_string, line)
     if parsed is not None:
@@ -74,6 +72,9 @@ def add_line(dam, line, format_string, date_map, file_name, line_num):
         raise Exception('Could not parse line')
 
 
+# add all lines of a log file into the dam table and add log file metadata into the logs table
+# starting_line represents the offset to read the file from 
+# (in order to allow for reading updated versions of previously added logs)
 def add_log(dam, log_file, castor_string, starting_line=0):
     format_string, date_map = castor_to_format_string(castor_string)
     old_cols = get_cols(dam)
@@ -128,6 +129,7 @@ def add_log(dam, log_file, castor_string, starting_line=0):
             print("{} was not added".format(log_file))
 
 
+# parse a castor string to get a list of its fields
 def get_fields_from_castor_string(castor_string):
     unparsed_fields = castor_string.split('{')[1:]
     unparsed_fields = [field.split('}')[0] for field in unparsed_fields]

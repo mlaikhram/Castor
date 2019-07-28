@@ -1,3 +1,4 @@
+# parse a conf file following conventions described in castor_example.conf
 def parseConf(conf_file):
     with open(conf_file, 'r') as fp:
         begin_name = None

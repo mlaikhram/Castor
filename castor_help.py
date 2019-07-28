@@ -1,4 +1,4 @@
-
+# all help strings for displaying usage tips to the user
 
 def dam_help():
     print("list dam\t\t\tList all available dams\n")

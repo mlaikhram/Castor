@@ -22,6 +22,7 @@ class bcolors:
     ENDC = '\033[0m'
 
 
+# create custom command line prompt to include associated dam
 def castor_input():
     global dam
     global dam_name
@@ -53,11 +54,13 @@ def sql_command():
         print("You must create or load a dam in order to execute sql queries.")
 
 
+# refomats dam name to match path to .dam file
 def get_dam_format():
     path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "dams")
     return path + "/{}.dam"
 
 
+# get all .dam files (found in dams/)
 def get_dams():
     dam_format = get_dam_format()
     abs_dams = glob(dam_format.format("*"))

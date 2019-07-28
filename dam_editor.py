@@ -2,6 +2,7 @@ import sqlite3
 from castor import bcolors
 
 
+# create a new .dam file with the initial tables and columns
 def create_dam(session_name):
     session = sqlite3.connect(session_name)
     cur = session.cursor()
@@ -13,17 +14,20 @@ def create_dam(session_name):
     return session
 
 
+# load an existing .dam file
 def load_dam(session_name):
     session = sqlite3.connect(session_name)
     return session
 
 
+# add new columns to the dam table
 def add_cols(session, cols):
     cur = session.cursor()
     for col in cols:
         cur.execute("alter table dam add column {} text".format(col))
 
 
+# get all columns in the dam table
 def get_cols(session):
     cur = session.cursor()
     cur.execute("PRAGMA table_info(dam)")
@@ -31,6 +35,7 @@ def get_cols(session):
     return [field[1] for field in fields]
 
 
+# get all columns in the logs table
 def get_meta_cols(session):
     cur = session.cursor()
     cur.execute("PRAGMA table_info(logs)")
@@ -38,6 +43,7 @@ def get_meta_cols(session):
     return [field[1] for field in fields]
 
 
+# get all castor strings associated with logs in this session
 def get_castor_strings(session):
     cur = session.cursor()
     cur.execute("select distinct castor_string from logs")
@@ -45,6 +51,7 @@ def get_castor_strings(session):
     return [val[0] for val in vals]
 
 
+# get all distinct vals for a given column
 def get_distinct_vals(session, field):
     cur = session.cursor()
     cur.execute("select distinct {} from dam".format(field))
@@ -52,6 +59,7 @@ def get_distinct_vals(session, field):
     return [val[0] for val in vals]
 
 
+# get all logs in this session with their associated Castor String and last line number read
 def get_logs(session):
     cur = session.cursor()
     cur.execute("select log_name, castor_string, last_line from logs")
@@ -59,6 +67,7 @@ def get_logs(session):
     return [[val[0], val[1], val[2]] for val in vals]
 
 
+# open a sql shell for the user to type and execute sql queries
 def sql_shell(session):
     print("Entering sql shell. Type '\\d' to view table columns. Type '\\q' to quit...")
     cur = session.cursor()
@@ -83,7 +92,6 @@ def sql_shell(session):
                 print()
                 query = ""
         query = query.split(";")[0]
-        # print(query)
         
         try:
             cur.execute(query)
