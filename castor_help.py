@@ -4,11 +4,13 @@ def dam_help():
     print("list dam\t\t\tList all available dams\n")
     print("create dam <dam name>\t\tCreate a new dam\n")
     print("load dam <dam name>\t\tLoad an existing dam\n")
+    print("update dam\t\t\tUpdate the current dam to reflect any changes to its log files\n")
 
 
 def log_help():
     print("list log\t\t\tList all logs in current dam\n")
     print("add log <FILE> [FILE]...\tAdd logs to current dam (FILE may be in wildcard format)\n")
+    print("update log <FILE>\t\tUpdate the current dam to reflect any changes to FILE (FILE must be an absolute path)\n")
 
 
 def conf_help():

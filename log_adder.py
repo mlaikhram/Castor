@@ -74,7 +74,7 @@ def add_line(dam, line, format_string, date_map, file_name, line_num):
         raise Exception('Could not parse line')
 
 
-def add_log(dam, log_file, castor_string):
+def add_log(dam, log_file, castor_string, starting_line=0):
     format_string, date_map = castor_to_format_string(castor_string)
     old_cols = get_cols(dam)
     current_cols = get_fields_from_castor_string(castor_string)
@@ -82,32 +82,48 @@ def add_log(dam, log_file, castor_string):
     add_cols(dam, new_cols)
 
     with open(log_file, 'r') as fp:
-        print("Adding {} to dam...".format(log_file))
+        if starting_line > 0:
+            print("Checking for updates to {}...".format(log_file))
+        else:
+            print("Adding {} to dam...".format(log_file))
+
         line = fp.readline()
         line_num = 0
         parsed_lines = 0
         while line:
+            if line_num < starting_line:
+                line_num += 1
+                line = fp.readline()
+                continue
+            elif starting_line > 0 and line_num == starting_line:
+                print("Found new lines!")
             try:
                 line_num += 1
                 add_line(dam, line, format_string, date_map, log_file, line_num)
                 parsed_lines += 1
             except Exception as e:
-                if line_num - parsed_lines == 3:
+                if line_num - starting_line - parsed_lines == 3:
                     print("Suppressing all future errors in this file")
-                if line_num - parsed_lines >= 3:
+                if line_num - starting_line - parsed_lines >= 3:
                     continue
 
                 print('Could not parse line {} in {}'.format(line_num, log_file))
                 print(line)
                 print("Error: {}".format(e))
             line = fp.readline()
-        print("Successfully parsed {} of {} lines.".format(parsed_lines, line_num))
+        
+        if line_num > starting_line or line_num == 0:
+            print("Successfully parsed {} of {} lines.".format(parsed_lines, line_num - starting_line))
 
         if parsed_lines > 0:
             cur = dam.cursor()
             insert_log = "replace into logs(log_name, castor_string, last_line) values (?, ?, ?)"
             cur.execute(insert_log, tuple([log_file, castor_string, line_num]))
             dam.commit()
+
+        elif starting_line > 0 and line_num == starting_line:
+            print("{} is already up to date".format(log_file))
+
         else:
             print("{} was not added".format(log_file))
 

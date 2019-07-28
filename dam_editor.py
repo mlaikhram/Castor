@@ -52,6 +52,13 @@ def get_distinct_vals(session, field):
     return [val[0] for val in vals]
 
 
+def get_logs(session):
+    cur = session.cursor()
+    cur.execute("select log_name, castor_string, last_line from logs")
+    vals = cur.fetchall()
+    return [[val[0], val[1], val[2]] for val in vals]
+
+
 def sql_shell(session):
     print("Entering sql shell. Type '\\d' to view table columns. Type '\\q' to quit...")
     cur = session.cursor()

@@ -113,6 +113,16 @@ def dam_commands(command):
                     fields = get_cols(dam)
                     for field in fields:
                         print(field)
+    
+    elif command[0] == "update":
+        logs = get_logs(dam)
+        for log in logs:
+            try:
+                add_log(dam, log[0], log[1], starting_line=int(log[2]))
+            except Exception:
+                print("Could not find log file: {}".format(log[0]))
+            print()
+        print("Finished updating dam")
 
     else:
         print("Invalid usage\n")
@@ -125,10 +135,9 @@ def log_commands(command):
     if dam is None:
         print("You must create or load a dam in order to interact with logs.")
     elif command[0] == "list":
-        log_names = get_distinct_vals(dam, "log_name")
-        for log_name in log_names:
-             print(log_name)
-             # TODO also display last line read up to in log
+        logs = get_logs(dam)
+        for log in logs:
+             print("up to line {} in {}".format(log[2], log[0]))
     
     elif command[0] == "add":
         if len(command) < 3:
@@ -161,11 +170,18 @@ def log_commands(command):
             for name in file_names:
                 add_log(dam, name, castor_string)
 
-    elif command[0] == "delete":
+    elif command[0] == "update":
         if len(command) < 3:
-            print("You must provide a log file to delete.")
+            print("You must provide a log file to update.")
         else:
-            print("to be implemented...")
+            logs = get_logs(dam)
+            log_names = [log[0] for log in logs]
+            if command[2] not in log_names:
+                print("{} is not a part of this dam. Did you mean to add log?".format(command[2]))
+            else:
+                for log in logs:
+                    if log[0] == command[2]:
+                        add_log(dam, log[0], log[1], starting_line=int(log[2]))
 
     else:
         print("Invalid usage\n")
