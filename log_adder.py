@@ -4,6 +4,10 @@ import sqlite3
 from datetime import datetime
 from dam_editor import get_cols, add_cols
 
+global last_datetime
+last_datetime = {}
+
+
 # get field names from castor string
 def parse_for_field_names(text):
     try:
@@ -33,6 +37,7 @@ def castor_to_format_string(text):
 
 # rebuild date into proper date format after separating it to properly parse log line
 def rebuild_date(entry_map, date_map):
+    global last_datetime
     rebuilt_map = entry_map
     for field_name,datetime_format in date_map.items():
         rebuilt_datetime = datetime_format
@@ -42,7 +47,27 @@ def rebuild_date(entry_map, date_map):
             entry_val = entry_map[entry_key]
             rebuilt_datetime = rebuilt_datetime.replace("%{}".format(component), entry_val)
             del rebuilt_map[entry_key]
-        rebuilt_map[field_name] = rebuilt_datetime
+        reformatted_datetime = datetime.strptime(rebuilt_datetime, datetime_format)
+        if reformatted_datetime.year == 1900:
+            if field_name in last_datetime:
+                reformatted_datetime = reformatted_datetime.replace(year=last_datetime[field_name].year)
+                if reformatted_datetime < last_datetime[field_name]:
+                    reformatted_datetime = reformatted_datetime.replace(year=reformatted_datetime.year+1)
+            else:
+                new_year_str = None
+                user_prompt = "Date field {} does not have a year! Please provide a starting year: ".format(field_name)
+                while new_year_str is None:
+                    new_year_str = input(user_prompt)
+                    try:
+                        new_year = int(new_year_str)
+                        if new_year < 1000 or new_year > 9999:
+                            raise ValueError
+                        reformatted_datetime = reformatted_datetime.replace(year=new_year)
+                    except ValueError:
+                        new_year_str = None
+                        user_prompt = "Please provide a valid year (YYYY): "
+        rebuilt_map[field_name] = reformatted_datetime.strftime("%Y-%m-%d %H:%M:%S.%f")
+        last_datetime[field_name] = reformatted_datetime
     return rebuilt_map
             
 
@@ -75,7 +100,10 @@ def add_line(dam, line, format_string, date_map, file_name, line_num):
 # add all lines of a log file into the dam table and add log file metadata into the logs table
 # starting_line represents the offset to read the file from 
 # (in order to allow for reading updated versions of previously added logs)
-def add_log(dam, log_file, castor_string, starting_line=0):
+def add_log(dam, log_file, castor_string, starting_line=0, default_datemap={}):
+    global last_datetime
+    last_datetime = default_datemap
+
     format_string, date_map = castor_to_format_string(castor_string)
     old_cols = get_cols(dam)
     current_cols = get_fields_from_castor_string(castor_string)
@@ -103,9 +131,9 @@ def add_log(dam, log_file, castor_string, starting_line=0):
                 add_line(dam, line, format_string, date_map, log_file, line_num)
                 parsed_lines += 1
             except Exception as e:
-                if line_num - starting_line - parsed_lines == 3:
+                if line_num - starting_line - parsed_lines == 5:
                     print("Suppressing all future errors in this file")
-                if line_num - starting_line - parsed_lines >= 3:
+                if line_num - starting_line - parsed_lines >= 5:
                     continue
 
                 print('Could not parse line {} in {}'.format(line_num, log_file))
@@ -127,6 +155,7 @@ def add_log(dam, log_file, castor_string, starting_line=0):
 
         else:
             print("{} was not added".format(log_file))
+        last_datetime.clear()
 
 
 # parse a castor string to get a list of its fields

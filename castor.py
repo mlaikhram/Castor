@@ -149,8 +149,16 @@ def log_commands(command):
             glob_result = []
             for pattern in command[2:]:
                 glob_result += glob(pattern, recursive=True)
-            file_names = [os.path.abspath(path) for path in glob_result if os.path.isfile(path)]
-            file_names.sort()
+            raw_file_names = [os.path.abspath(path) for path in glob_result if os.path.isfile(path)]
+            raw_file_names.sort()
+            file_names = []
+            old_files = [old_file[0] for old_file in get_logs(dam)]
+            for name in raw_file_names:
+                if name in old_files:
+                    print("{} is already in this dam".format(name))
+                else:
+                    file_names.append(name)
+            print()
             for name in file_names:
                 print(name)
 
