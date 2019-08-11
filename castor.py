@@ -35,7 +35,7 @@ def castor_input():
                                                         dam_name, 
                                                         bcolors.ENDC))
 
-
+# prints a list of all fields in the current dam
 def fields_command():
     global dam
     if dam is not None:
@@ -46,6 +46,7 @@ def fields_command():
         print("You must create or load a dam in order to check available fields.")
 
 
+# opens a sql shell to query the dam
 def sql_command():
     global dam
     if dam is not None:
@@ -54,7 +55,7 @@ def sql_command():
         print("You must create or load a dam in order to execute sql queries.")
 
 
-# refomats dam name to match path to .dam file
+# reformats dam name to match path to .dam file
 def get_dam_format():
     path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "dams")
     return path + "/{}.dam"
@@ -158,7 +159,9 @@ def log_commands(command):
                     print("{} is already in this dam".format(name))
                 else:
                     file_names.append(name)
-            print()
+            if len(raw_file_names) != len(file_names):
+                print("Did you mean to update log?")
+                print()
             for name in file_names:
                 print(name)
 
@@ -197,6 +200,56 @@ def log_commands(command):
     else:
         print("Invalid usage\n")
         log_help()
+
+
+def daterange_command(comman):
+    global dam
+    global dam_name
+    if dam is None:
+        print("You must create or load a dam in order to interact with logs.")
+    elif len(command) >= 4:
+        if command[1] not in get_cols(dam):
+            print("Field: {} is not in this dam.".format(command[1]))
+        elif not is_date_field(dam, command[1]):
+            print("Field: {} is not a valid datetime field".format(command[1]))
+        else:
+            unchecked_date = ""
+            start_date = None
+            end_date = None
+            try:
+                unchecked_date = command[2]
+                start_date = datetime.strptime(unchecked_date, "%Y-%m-%d %H:%M:%S.%f")
+                unchecked_date = command[3]
+                end_date = datetime.strptime(unchecked_date, "%Y-%m-%d %H:%M:%S.%f")
+            except Exception:
+                print('{} is not the proper date format ("YYYY-MM-DD HH:MM:SS.SSS")'.format(unchecked_date))
+                return
+            
+            all_cols = get_cols(dam)
+            all_cols.remove(command[1])
+            print("Available fields:")
+            for i in range(len(all_cols)):
+                print("[{}] {}".format(i, all_cols[i]))
+            chosen_cols = []
+            while len(chosen_cols) <= 0:
+                try:
+                    list_string = input("Please provide a comma separated list of numbers corresponding to the fields you would like to display:\n")
+                    list_indices = [int(l_index.strip()) for l_index in list_string.split(',')]
+                except Exception:
+                    print("{} is not a valid list of indices.".format(list_string))
+                    continue
+                
+                try:
+                    chosen_cols = [all_cols[i] for i in list_indices]
+                except Exception as e:
+                    print(e)
+                    chosen_cols.clear()
+
+            query_daterange(dam, command[1], start_date, end_date, chosen_cols)
+            
+    else:
+        print("Invalid usage\n")
+        daterange_help()
 
 
 def conf_commands(command):
@@ -249,26 +302,52 @@ def values_command(command):
 
 if __name__ == '__main__':
     os.system('clear')
-    print("Welcome to Castor!")
-    print("Type 'help' for a list of commands.")
+    print("      _______________________________________________________________      ")
+    print("     (_____________________________________________________________ ()     ")
+    print("    (_()  (_____() ______     _____   __(_()   _______   ____    (_()()    ")
+    print("   (_()  (_()     (_____()   ( ___() (_____() (______() (___()  (_()()()   ")
+    print("  (_()  (_()__   (_()_(_()  (___ ()   (_()   (_()_(_() (_()    (_()()()()  ")
+    print(" (_()__(_____()_(_______()_(____()___(_()___(______()_(_()____(_()()()()() ")
+    print("(______________________________________________________________()()()()()()")
+    print("\nWelcome to Castor! Use in full screen for best experience.")
+    print("Type 'help' for a list of commands.\n")
  
     while True:
-        command = castor_input().split()
+        raw_command = castor_input().split()
+        command = []
+        fixed_arg = ""
+        for command_arg in raw_command:
+            if command_arg[0] == '"' and fixed_arg == "":
+                fixed_arg = command_arg
+            elif command_arg[-1] == '"':
+                fixed_arg += ' ' + command_arg
+                command.append(fixed_arg.replace('"', ''))
+                fixed_arg = ""
+            elif fixed_arg == "":
+                command.append(command_arg)
+            else:
+                fixed_arg += ' ' + command_arg
 
-        if len(command) == 0:
+        if fixed_arg != "":
+            print("Error reading input: Invalid double quotes")
+
+        elif len(command) == 0:
             continue
         
-        if command[0] == "quit":
+        elif command[0] == "quit":
             print("Exiting Castor...")
             if dam is not None:
                 dam.close()
             break
 
-        if command[0] == "help":
+        elif command[0] == "help":
             all_help()
 
         elif command[0] == "fields":
             fields_command()
+
+        elif command[0] == "daterange":
+            daterange_command(command)
 
         elif command[0] == "sql":
             sql_command()

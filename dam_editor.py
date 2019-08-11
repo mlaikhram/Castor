@@ -1,4 +1,5 @@
 import sqlite3
+from datetime import datetime
 from castor import bcolors
 
 
@@ -65,6 +66,36 @@ def get_logs(session):
     cur.execute("select log_name, castor_string, last_line from logs")
     vals = cur.fetchall()
     return [[val[0], val[1], val[2]] for val in vals]
+
+
+# check if field contains date strings
+def is_date_field(session, field):
+    cur = session.cursor()
+    cur.execute("select {} from dam limit 1".format(field))
+    val = cur.fetchall()
+    try:
+        valid_datetime = datetime.strptime(val[0][0], "%Y-%m-%d %H:%M:%S.%f")
+        return True
+    except Exception as e:
+        print(e)
+        return False
+
+
+# get all rows in the given date range for a given date field
+def query_daterange(session, date_field, start_date, end_date, fields):
+    cur = session.cursor()
+    query_string = 'select {0},{1} from dam where {0} >= "{2}" and {0} <= "{3}" order by {0}'.format(date_field, ",".join(fields), start_date, end_date)
+    print(query_string)
+    cur.execute(query_string)
+    table_format = "{0}|{1}" + "%s{0}|{1}"*len(cur.description) + "{2}"
+    table_format = table_format.format(bcolors.YELLOW, bcolors.BLUE, bcolors.ENDC)
+    col_names = [col[0] for col in cur.description]
+    header = table_format % tuple(col_names)
+    print(header)
+    results = cur.fetchall()
+    for result in results:
+        fixed_result = ['Null' if val is None else val for val in result]
+        print(table_format % tuple(fixed_result))
 
 
 # open a sql shell for the user to type and execute sql queries
