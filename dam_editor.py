@@ -57,7 +57,9 @@ def get_distinct_vals(session, field):
     cur = session.cursor()
     cur.execute("select distinct {} from dam".format(field))
     vals = cur.fetchall()
-    return [val[0] for val in vals]
+    distinct_vals = [val[0] for val in vals]
+    distinct_vals.sort()
+    return distinct_vals
 
 
 # get all logs in this session with their associated Castor String and last line number read
@@ -81,8 +83,41 @@ def is_date_field(session, field):
         return False
 
 
+# display database information stored in cur from an active session
+def display_data(cur, output_file=None):
+    table_format = "{0}|{1}" + "%s{0}|{1}"*len(cur.description) + "{2}"
+    header_format = table_format.format(bcolors.YELLOW, bcolors.ENDC, bcolors.ENDC).replace('|', '!')
+    table_format = table_format.format(bcolors.YELLOW, bcolors.BLUE, bcolors.ENDC)
+    col_names = [col[0] for col in cur.description]
+    header = header_format % tuple(col_names)
+    results = cur.fetchall()
+    result_index = 0
+    for result in results:
+        if result_index % 50 == 0:
+            print_and_log(header, output_file)
+        fixed_result = ['Null' if val is None else val for val in result]
+        print_and_log(table_format % tuple(fixed_result), output_file)
+        result_index += 1
+    if output_file is not None:
+        print("output written to {}".format(output_file.name))
+        output_file.write("\n\n")
+
+
+def print_and_log(line, output_file):
+    print(line)
+    if output_file is not None:
+        output_file.write(replace_all(line, [bcolors.BLUE, bcolors.RED, bcolors.GREEN, bcolors.YELLOW, bcolors.ENDC], "") + '\n')
+
+
+def replace_all(string, targets, replacement):
+    final = string
+    for target in targets:
+        final = final.replace(target, replacement)
+    return final
+
+
 # get all rows in the given date range for a given date field with the appropriate filters
-def query_timeline(session, date_field, start_date, end_date, fields, filter_map):
+def query_timeline(session, date_field, start_date, end_date, fields, filter_map, output_file):
     cur = session.cursor()
     select_string = 'select {},{} from dam'.format(date_field, ",".join(fields))
     time_string = ""
@@ -96,33 +131,30 @@ def query_timeline(session, date_field, start_date, end_date, fields, filter_map
         filter_string += " and ({})".format(or_block)
     
     query_string = "{} where 1=1{}{} order by {}".format(select_string, time_string, filter_string, date_field)
-    print(query_string)
+
     cur.execute(query_string)
-    table_format = "{0}|{1}" + "%s{0}|{1}"*len(cur.description) + "{2}"
-    header_format = table_format.format(bcolors.YELLOW, bcolors.ENDC, bcolors.ENDC).replace('|', '!')
-    table_format = table_format.format(bcolors.YELLOW, bcolors.BLUE, bcolors.ENDC)
-    col_names = [col[0] for col in cur.description]
-    header = header_format % tuple(col_names)
-    results = cur.fetchall()
-    result_index = 0
-    for result in results:
-        if result_index % 50 == 0:
-            print(header)
-        fixed_result = ['Null' if val is None else val for val in result]
-        print(table_format % tuple(fixed_result))
-        result_index += 1
+    if output_file is not None:
+        output_file.write("Date range: {} to {}\n".format(start_date if start_date != "" else "start", end_date if end_date != "" else "end"))
+        output_file.write("Selected fields:\n")
+        for i in range(len(fields)):
+            filtered_vals = ""
+            if fields[i] in filter_map:
+                filtered_vals = " -> {}".format(",".join(filter_map[fields[i]]))
+            output_file.write("{}{}\n".format(fields[i], filtered_vals))
+        output_file.write("Raw Query: {}\n".format(query_string))
+    display_data(cur, output_file=output_file)
 
 
 # open a sql shell for the user to type and execute sql queries
-def sql_shell(session):
-    print("Entering sql shell. Type '\\d' to view table columns. Type '\\q' to quit...")
+def sql_shell(session, output_file):
+    print("Entering sql shell. End query with a ';'. End query with a '|' instead to log output. Type '\\d' to view table columns. Type '\\q' to quit...")
     cur = session.cursor()
     print("tables:")
     print("dam:  contains the combined log data")
     print("logs: contains log names and their corresponding castor strings")
     while True:
         query = ""
-        while ";" not in query:
+        while ";" not in query and "|" not in query:
             query += input("> ") + " "
             if "\\q" in query:
                 return
@@ -137,23 +169,20 @@ def sql_shell(session):
                     print(col)
                 print()
                 query = ""
-        query = query.split(";")[0]
+        log_query = False
+        if "|" in query:
+            query = query.split("|")[0]
+            log_query = True
+        else:
+            query = query.split(";")[0]
         
         try:
             cur.execute(query)
-            table_format = "{0}|{1}" + "%s{0}|{1}"*len(cur.description) + "{2}"
-            header_format = table_format.format(bcolors.YELLOW, bcolors.ENDC, bcolors.ENDC).replace('|', '!')
-            table_format = table_format.format(bcolors.YELLOW, bcolors.BLUE, bcolors.ENDC)
-            col_names = [col[0] for col in cur.description]
-            header = header_format % tuple(col_names)
-            results = cur.fetchall()
-            result_index = 0
-            for result in results:
-                if result_index % 50 == 0:
-                    print(header)
-                fixed_result = ['Null' if val is None else val for val in result]
-                print(table_format % tuple(fixed_result))
-                result_index += 1
+            if output_file is not None and log_query:
+                output_file.write("Raw Query: {}\n".format(query))
+                display_data(cur, output_file=output_file)
+            else:
+                display_data(cur)
         except Exception as e:
             print(e)
 

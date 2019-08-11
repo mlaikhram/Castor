@@ -14,6 +14,9 @@ dam = None
 global dam_name 
 dam_name = None
 
+global output_file
+output_file = None
+
 class bcolors:
     BLUE = '\033[94m'
     GREEN = '\033[92m'
@@ -26,13 +29,19 @@ class bcolors:
 def castor_input():
     global dam
     global dam_name
+    global output_file
     if dam is None:
         return input("{}[Castor]{} ".format(bcolors.BLUE, bcolors.ENDC))
-    else:
-        return input("{}[Castor]{}{}[{}]{} ".format(bcolors.BLUE, 
-                                                        bcolors.ENDC, 
+    elif output_file is None:
+        return input("{0}[Castor]{3}{1}[{2}]{3} ".format(bcolors.BLUE, 
                                                         bcolors.YELLOW, 
                                                         dam_name, 
+                                                        bcolors.ENDC))
+    else:
+        return input("{0}[Castor]{4}{1}[{2} -> {3}]{4} ".format(bcolors.BLUE, 
+                                                        bcolors.YELLOW, 
+                                                        dam_name, 
+                                                        output_file.name,
                                                         bcolors.ENDC))
 
 # prints a list of all fields in the current dam
@@ -49,8 +58,9 @@ def fields_command():
 # opens a sql shell to query the dam
 def sql_command():
     global dam
+    global output_file
     if dam is not None:
-        sql_shell(dam)
+        sql_shell(dam, output_file)
     else:
         print("You must create or load a dam in order to execute sql queries.")
 
@@ -133,6 +143,53 @@ def dam_commands(command):
         dam_help()
 
 
+def output_commands(command):
+    global dam
+    global dam_name
+    global output_file
+    if dam is None:
+        print("You must create or load a dam in order to begin recording output.")
+    elif command[0] == "create":
+        if len(command) < 3:
+            print("You must provide an output file to create.")
+        elif os.path.exists(command[2]):
+            print("File: {} already exists. Did you mean to append output?".format(command[2]))
+        else:
+            try:
+                output_file = open(command[2], 'w')
+                output_file.write("Castor Output (started at {})\n\n".format(datetime.now()))
+            except Exception as e:
+                print(e)
+                output_file = None
+    elif command[0] == "append":
+        if len(command) < 3:
+            print("You must provide an output file to append to.")
+        elif not os.path.exists(command[2]):
+            print("File: {} does not exist. Did you mean to create output?".format(command[2]))
+        else:
+            try:
+                output_file = open(command[2], 'a')
+                output_file.write("Castor Output (started at {})\n\n".format(datetime.now()))
+            except Exception as e:
+                print(e)
+                output_file = None
+    elif command[0] == "overwrite":
+        if len(command) < 3:
+            print("You must provide an output file path to overwrite to.")
+        elif not os.path.exists(command[2]):
+            print("File: {} does not exist. Did you mean to create output?".format(command[2]))
+        else:
+            try:
+                output_file = open(command[2], 'w')
+                output_file.write("Castor Output (started at {})\n\n".format(datetime.now()))
+            except Exception as e:
+                print(e)
+                output_file = None
+    else:
+        print("Invalid usage\n")
+        output_help()
+
+
 def log_commands(command):
     global dam
     global dam_name
@@ -205,6 +262,7 @@ def log_commands(command):
 def timeline_command(comman):
     global dam
     global dam_name
+    global output_file
     if dam is None:
         print("You must create or load a dam in order to interact with logs.")
     elif len(command) >= 2:
@@ -263,6 +321,7 @@ def timeline_command(comman):
 
             filter_map = {}
             while True:
+                print("Date range: {} to {}".format(start_date if start_date != "" else "start", end_date if end_date != "" else "end"))
                 print("Selected fields:")
                 for i in range(len(chosen_cols)):
                     filtered_vals = ""
@@ -322,7 +381,7 @@ def timeline_command(comman):
                         print(e)
                         chosen_vals.clear()
 
-            query_timeline(dam, command[1], start_date, end_date, chosen_cols, filter_map)
+            query_timeline(dam, command[1], start_date, end_date, chosen_cols, filter_map, output_file)
             
     else:
         print("Invalid usage\n")
@@ -400,7 +459,7 @@ if __name__ == '__main__':
                 fixed_arg = command_arg
             elif command_arg[-1] == '"':
                 fixed_arg += ' ' + command_arg
-                command.append(fixed_arg.replace('"', ''))
+                command.append(fixed_arg)
                 fixed_arg = ""
             elif fixed_arg == "":
                 command.append(command_arg)
@@ -417,6 +476,8 @@ if __name__ == '__main__':
             print("Exiting Castor...")
             if dam is not None:
                 dam.close()
+            if output_file is not None:
+                output_file.close()
             break
 
         elif command[0] == "help":
@@ -432,16 +493,19 @@ if __name__ == '__main__':
             sql_command()
 
         elif len(command) > 1 and command[1] == "dam":
-            dam_commands(command)
+            dam_commands([c.replace('"', "") for c in command])
+
+        elif len(command) > 1 and command[1] == "output":
+            output_commands([c.replace('"', "") for c in command])
 
         elif len(command) > 1 and command[1] == "log":
-            log_commands(command)
+            log_commands([c.replace('"', "") for c in command])
 
         elif len(command) > 1 and command[1] == "conf":
-            conf_commands(command)
+            conf_commands([c.replace('"', "") for c in command])
 
         elif len(command) > 1 and command[1] == "values":
-            values_command(command)
+            values_command([c.replace('"', "") for c in command])
 
         else:
             print("Not a valid command. Type 'help' for a list of commands.")

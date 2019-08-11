@@ -13,6 +13,12 @@ def log_help():
     print("update log <FILE>\t\tUpdate the current dam to reflect any changes to FILE (FILE must be an absolute path)\n")
 
 
+def output_help():
+    print("create output <FILE>\t\tCreate new file to store data output to\n")
+    print("append output <FILE>\t\tOpen file to append data output to\n")
+    print("overwrite output <FILE>\t\tOpen file to overwrite data output to\n")
+
+
 def conf_help():
     print("add conf <FILE>\t\t\tAdd conf to current dam (FILE must match exactly)\n")
 
@@ -40,6 +46,7 @@ def quit_help():
 def all_help():
     dam_help()
     log_help()
+    output_help()
     conf_help()
     fields_help()
     values_help()
