@@ -202,28 +202,44 @@ def log_commands(command):
         log_help()
 
 
-def daterange_command(comman):
+def timeline_command(comman):
     global dam
     global dam_name
     if dam is None:
         print("You must create or load a dam in order to interact with logs.")
-    elif len(command) >= 4:
+    elif len(command) >= 2:
         if command[1] not in get_cols(dam):
             print("Field: {} is not in this dam.".format(command[1]))
         elif not is_date_field(dam, command[1]):
             print("Field: {} is not a valid datetime field".format(command[1]))
         else:
-            unchecked_date = ""
             start_date = None
             end_date = None
-            try:
-                unchecked_date = command[2]
-                start_date = datetime.strptime(unchecked_date, "%Y-%m-%d %H:%M:%S.%f")
-                unchecked_date = command[3]
-                end_date = datetime.strptime(unchecked_date, "%Y-%m-%d %H:%M:%S.%f")
-            except Exception:
-                print('{} is not the proper date format ("YYYY-MM-DD HH:MM:SS.SSS")'.format(unchecked_date))
-                return
+            while start_date == None:
+                try:
+                    unchecked_date = input("Provide a starting datetime (YYYY-MM-DD HH:MM:SS.SSS) or type 's' to skip: ")
+                    if unchecked_date == 's':
+                        start_date = ""
+                    else:
+                        datetime_check = datetime.strptime(unchecked_date, "%Y-%m-%d %H:%M:%S.%f")
+                        start_date = unchecked_date
+                except Exception:
+                    print('{} is not the proper date format (YYYY-MM-DD HH:MM:SS.SSS)'.format(unchecked_date))
+                    start_date = None
+            while end_date == None:
+                try:
+                    unchecked_date = input("Provide an ending datetime (YYYY-MM-DD HH:MM:SS.SSS) or type 's' to skip: ")
+                    if unchecked_date == 's':
+                        end_date = ""
+                    else:
+                        datetime_check = datetime.strptime(unchecked_date, "%Y-%m-%d %H:%M:%S.%f")
+                        end_date = unchecked_date
+                        if end_date < start_date:
+                            print("Ending datetime cannot be earlier than starting datetime.")
+                            end_date = None
+                except Exception:
+                    print('{} is not the proper date format (YYYY-MM-DD HH:MM:SS.SSS)'.format(unchecked_date))
+                    end_date = None
             
             all_cols = get_cols(dam)
             all_cols.remove(command[1])
@@ -245,11 +261,72 @@ def daterange_command(comman):
                     print(e)
                     chosen_cols.clear()
 
-            query_daterange(dam, command[1], start_date, end_date, chosen_cols)
+            filter_map = {}
+            while True:
+                print("Selected fields:")
+                for i in range(len(chosen_cols)):
+                    filtered_vals = ""
+                    if chosen_cols[i] in filter_map:
+                        filtered_vals = " -> {}".format(",".join(filter_map[chosen_cols[i]]))
+                    print("[{}] {}{}".format(i, chosen_cols[i], filtered_vals))
+                filter_col = ""
+                while filter_col == "":
+                    try:
+                        index_string = input("Please provide a number corresponding to the field you would like to add a filter to or type 'c' to continue: ")
+                        if index_string == 'c':
+                            break
+                        index = int(index_string.strip())
+                    except Exception:
+                        print("{} is not a valid number.".format(index_string))
+                        continue
+                    
+                    try:
+                        filter_col = chosen_cols[index]
+                    except Exception as e:
+                        print(e)
+                        filter_col = ""
+
+                if filter_col == "":
+                    break
+                field_vals = get_distinct_vals(dam, filter_col)
+                if len(field_vals) > 20:
+                    while True:
+                        yn = input("Display all {} results? (y/n) ".format(len(field_vals))).lower()
+                        if yn[0] == "y":
+                            break
+                        elif yn[0] == "n":
+                            field_vals = []
+                            break
+                if len(field_vals) <= 0:
+                    print("No values to display.")
+                    continue 
+                print("Available values:")
+                for i in range(len(field_vals)):
+                    print("[{}] {}".format(i, field_vals[i]))
+                chosen_vals = []
+                while len(chosen_vals) <= 0:
+                    try:
+                        list_string = input("Please provide a comma separated list of numbers corresponding to the values you would like to track or type 'c' to clear:\n")
+                        if list_string == 'c':
+                            filter_map.pop(filter_col, None)
+                            break
+                        list_indices = [int(l_index.strip()) for l_index in list_string.split(',')]
+                    except Exception:
+                        print("{} is not a valid list of indices.".format(list_string))
+                        continue
+                    
+                    try:
+                        chosen_vals = [field_vals[i] for i in list_indices]
+                        filter_map[filter_col] = chosen_vals
+                    except Exception as e:
+                        print(e)
+                        chosen_vals.clear()
+
+            query_timeline(dam, command[1], start_date, end_date, chosen_cols, filter_map)
             
     else:
         print("Invalid usage\n")
-        daterange_help()
+        timeline_help()
 
 
 def conf_commands(command):
@@ -303,12 +380,14 @@ def values_command(command):
 if __name__ == '__main__':
     os.system('clear')
     print("      _______________________________________________________________      ")
-    print("     (_____________________________________________________________ ()     ")
+    print("     (______________________________________________________________()     ")
     print("    (_()  (_____() ______     _____   __(_()   _______   ____    (_()()    ")
     print("   (_()  (_()     (_____()   ( ___() (_____() (______() (___()  (_()()()   ")
     print("  (_()  (_()__   (_()_(_()  (___ ()   (_()   (_()_(_() (_()    (_()()()()  ")
     print(" (_()__(_____()_(_______()_(____()___(_()___(______()_(_()____(_()()()()() ")
     print("(______________________________________________________________()()()()()()")
+    print("                               Created by Matthew Laikhram 2019            ")
+
     print("\nWelcome to Castor! Use in full screen for best experience.")
     print("Type 'help' for a list of commands.\n")
  
@@ -346,8 +425,8 @@ if __name__ == '__main__':
         elif command[0] == "fields":
             fields_command()
 
-        elif command[0] == "daterange":
-            daterange_command(command)
+        elif command[0] == "timeline":
+            timeline_command(command)
 
         elif command[0] == "sql":
             sql_command()

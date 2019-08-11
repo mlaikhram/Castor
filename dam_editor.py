@@ -81,21 +81,36 @@ def is_date_field(session, field):
         return False
 
 
-# get all rows in the given date range for a given date field
-def query_daterange(session, date_field, start_date, end_date, fields):
+# get all rows in the given date range for a given date field with the appropriate filters
+def query_timeline(session, date_field, start_date, end_date, fields, filter_map):
     cur = session.cursor()
-    query_string = 'select {0},{1} from dam where {0} >= "{2}" and {0} <= "{3}" order by {0}'.format(date_field, ",".join(fields), start_date, end_date)
+    select_string = 'select {},{} from dam'.format(date_field, ",".join(fields))
+    time_string = ""
+    if start_date != "":
+        time_string += ' and {} >= "{}"'.format(date_field, start_date)
+    if end_date != "":
+        time_string += ' and {} <= "{}"'.format(date_field, end_date)
+    filter_string = ""
+    for field,filters in filter_map.items():
+        or_block = " or ".join(['{}="{}"'.format(field, f) for f in filters])
+        filter_string += " and ({})".format(or_block)
+    
+    query_string = "{} where 1=1{}{} order by {}".format(select_string, time_string, filter_string, date_field)
     print(query_string)
     cur.execute(query_string)
     table_format = "{0}|{1}" + "%s{0}|{1}"*len(cur.description) + "{2}"
+    header_format = table_format.format(bcolors.YELLOW, bcolors.ENDC, bcolors.ENDC).replace('|', '!')
     table_format = table_format.format(bcolors.YELLOW, bcolors.BLUE, bcolors.ENDC)
     col_names = [col[0] for col in cur.description]
-    header = table_format % tuple(col_names)
-    print(header)
+    header = header_format % tuple(col_names)
     results = cur.fetchall()
+    result_index = 0
     for result in results:
+        if result_index % 50 == 0:
+            print(header)
         fixed_result = ['Null' if val is None else val for val in result]
         print(table_format % tuple(fixed_result))
+        result_index += 1
 
 
 # open a sql shell for the user to type and execute sql queries
@@ -127,14 +142,18 @@ def sql_shell(session):
         try:
             cur.execute(query)
             table_format = "{0}|{1}" + "%s{0}|{1}"*len(cur.description) + "{2}"
+            header_format = table_format.format(bcolors.YELLOW, bcolors.ENDC, bcolors.ENDC).replace('|', '!')
             table_format = table_format.format(bcolors.YELLOW, bcolors.BLUE, bcolors.ENDC)
             col_names = [col[0] for col in cur.description]
-            header = table_format % tuple(col_names)
-            print(header)
+            header = header_format % tuple(col_names)
             results = cur.fetchall()
+            result_index = 0
             for result in results:
+                if result_index % 50 == 0:
+                    print(header)
                 fixed_result = ['Null' if val is None else val for val in result]
                 print(table_format % tuple(fixed_result))
+                result_index += 1
         except Exception as e:
             print(e)
 
