@@ -347,7 +347,7 @@ def timeline_command(comman):
 
                 if filter_col == "":
                     break
-                field_vals = get_distinct_vals(dam, filter_col)
+                field_vals = get_distinct_vals(dam, filter_col, command[1], start_date, end_date)
                 if len(field_vals) > 20:
                     while True:
                         yn = input("Display all {} results? (y/n) ".format(len(field_vals))).lower()

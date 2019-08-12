@@ -53,11 +53,17 @@ def get_castor_strings(session):
 
 
 # get all distinct vals for a given column
-def get_distinct_vals(session, field):
+def get_distinct_vals(session, field, date_field=None, start_date="", end_date=""):
     cur = session.cursor()
-    cur.execute("select distinct {} from dam".format(field))
+    query_string = "select distinct {} from dam where 1=1".format(field) 
+    if date_field is not None:
+        if start_date != "":
+            query_string += ' and {} >= "{}"'.format(date_field, start_date)
+        if end_date != "":
+            query_string += ' and {} <= "{}"'.format(date_field, end_date)
+    cur.execute(query_string)
     vals = cur.fetchall()
-    distinct_vals = [val[0] for val in vals]
+    distinct_vals = [val[0] if val[0] is not None else 'Null' for val in vals]
     distinct_vals.sort()
     return distinct_vals
 
@@ -98,6 +104,7 @@ def display_data(cur, output_file=None):
         fixed_result = ['Null' if val is None else val for val in result]
         print_and_log(table_format % tuple(fixed_result), output_file)
         result_index += 1
+    print_and_log("Displaying all {} rows".format(result_index), output_file)
     if output_file is not None:
         print("output written to {}".format(output_file.name))
         output_file.write("\n\n")
@@ -126,13 +133,15 @@ def query_timeline(session, date_field, start_date, end_date, fields, filter_map
     if end_date != "":
         time_string += ' and {} <= "{}"'.format(date_field, end_date)
     filter_string = ""
+    filter_prep = []
     for field,filters in filter_map.items():
-        or_block = " or ".join(['{}="{}"'.format(field, f) for f in filters])
+        or_block = " or ".join(['{}=?'.format(field) for f in filters])
+        filter_prep.extend(filters)
         filter_string += " and ({})".format(or_block)
     
     query_string = "{} where 1=1{}{} order by {}".format(select_string, time_string, filter_string, date_field)
 
-    cur.execute(query_string)
+    cur.execute(query_string, tuple(filter_prep))
     if output_file is not None:
         output_file.write("Date range: {} to {}\n".format(start_date if start_date != "" else "start", end_date if end_date != "" else "end"))
         output_file.write("Selected fields:\n")

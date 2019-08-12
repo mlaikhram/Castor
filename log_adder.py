@@ -130,7 +130,7 @@ def add_log(dam, log_file, castor_string, starting_line=0, default_datemap={}):
                 line_num += 1
                 add_line(dam, line, format_string, date_map, log_file, line_num)
                 parsed_lines += 1
-            except Exception as e:
+            except Exception:
                 if line_num - starting_line - parsed_lines == 5:
                     print("Suppressing all future errors in this file")
                 if line_num - starting_line - parsed_lines >= 5:
@@ -138,7 +138,6 @@ def add_log(dam, log_file, castor_string, starting_line=0, default_datemap={}):
 
                 print('Could not parse line {} in {}'.format(line_num, log_file))
                 print(line)
-                print("Error: {}".format(e))
             line = fp.readline()
         
         if line_num > starting_line or line_num == 0:
