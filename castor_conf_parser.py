@@ -21,7 +21,7 @@ def parseConf(conf_file):
                 begin_name = line.split()[1]
                 castor_string = None
                 file_names = []
-                datemaps.clear
+                datemaps.clear()
 
             elif castor_string is None:
                 castor_string = line.replace('\n', "")

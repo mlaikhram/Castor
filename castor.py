@@ -403,9 +403,8 @@ def conf_commands(command):
                     for name in file_names:
                         try:
                             add_log(dam, name, castor_string, 0, {} if name not in datemaps else datemaps[name], True)
-                        except Exception as e:
+                        except Exception:
                             print("Could not add file {}".format(name))
-                            print(e)
                     print()
                 print("Finished reading {}".format(command[2]))
             except Exception:
