@@ -398,11 +398,11 @@ def conf_commands(command):
             print("You must provide a conf file to add")
         else:
             try:
-                for begin_name,castor_string,file_names in parseConf(command[2]):
+                for begin_name,castor_string,file_names,datemaps in parseConf(command[2]):
                     print("adding {} files with Castor String:\n{}\n".format(begin_name, castor_string))
                     for name in file_names:
                         try:
-                            add_log(dam, name, castor_string)
+                            add_log(dam, name, castor_string, 0, {} if name not in datemaps else datemaps[name], True)
                         except Exception as e:
                             print("Could not add file {}".format(name))
                             print(e)

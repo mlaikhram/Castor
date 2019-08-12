@@ -36,7 +36,7 @@ def castor_to_format_string(text):
 
 
 # rebuild date into proper date format after separating it to properly parse log line
-def rebuild_date(entry_map, date_map):
+def rebuild_date(entry_map, date_map, ignorePrompts=False):
     global last_datetime
     rebuilt_map = entry_map
     for field_name,datetime_format in date_map.items():
@@ -53,7 +53,7 @@ def rebuild_date(entry_map, date_map):
                 reformatted_datetime = reformatted_datetime.replace(year=last_datetime[field_name].year)
                 if reformatted_datetime < last_datetime[field_name]:
                     reformatted_datetime = reformatted_datetime.replace(year=reformatted_datetime.year+1)
-            else:
+            elif not ignorePrompts:
                 new_year_str = None
                 user_prompt = "Date field {} does not have a year! Please provide a starting year: ".format(field_name)
                 while new_year_str is None:
@@ -66,6 +66,9 @@ def rebuild_date(entry_map, date_map):
                     except ValueError:
                         new_year_str = None
                         user_prompt = "Please provide a valid year (YYYY): "
+            else:
+                print("No starting year was provided for date field {}. Using default value of 1900.".format(field_name))
+
         rebuilt_map[field_name] = reformatted_datetime.strftime("%Y-%m-%d %H:%M:%S.%f")
         last_datetime[field_name] = reformatted_datetime
     return rebuilt_map
@@ -87,11 +90,11 @@ def add_entry(dam, entry_map, file_name, line_num):
 
 
 # convert log file line into an entry map to be inserted into the dam
-def add_line(dam, line, format_string, date_map, file_name, line_num):
+def add_line(dam, line, format_string, date_map, file_name, line_num, ignorePrompts=False):
     parsed = parse.parse(format_string, line)
     if parsed is not None:
        entry_map = parsed
-       entry_map = rebuild_date(entry_map.named, date_map)
+       entry_map = rebuild_date(entry_map.named, date_map, ignorePrompts)
        add_entry(dam, entry_map, file_name, line_num)
     else:
         raise Exception('Could not parse line')
@@ -100,7 +103,7 @@ def add_line(dam, line, format_string, date_map, file_name, line_num):
 # add all lines of a log file into the dam table and add log file metadata into the logs table
 # starting_line represents the offset to read the file from 
 # (in order to allow for reading updated versions of previously added logs)
-def add_log(dam, log_file, castor_string, starting_line=0, default_datemap={}):
+def add_log(dam, log_file, castor_string, starting_line=0, default_datemap={}, ignorePrompts=False):
     global last_datetime
     last_datetime = default_datemap
 
@@ -128,15 +131,16 @@ def add_log(dam, log_file, castor_string, starting_line=0, default_datemap={}):
                 print("Found new lines!")
             try:
                 line_num += 1
-                add_line(dam, line, format_string, date_map, log_file, line_num)
+                add_line(dam, line, format_string, date_map, log_file, line_num, ignorePrompts)
                 parsed_lines += 1
-            except Exception:
+            except Exception as e:
                 if line_num - starting_line - parsed_lines == 5:
                     print("Suppressing all future errors in this file")
                 if line_num - starting_line - parsed_lines >= 5:
                     continue
 
                 print('Could not parse line {} in {}'.format(line_num, log_file))
+                print(e)
                 print(line)
             line = fp.readline()
         
