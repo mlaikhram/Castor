@@ -259,7 +259,7 @@ def log_commands(command):
         log_help()
 
 
-def timeline_command(comman):
+def timeline_command(command):
     global dam
     global dam_name
     global output_file
