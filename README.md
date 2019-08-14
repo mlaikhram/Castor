@@ -6,7 +6,7 @@ How to run:
 python3 castor.py
 ```
 
-Please read the castor_example.conf for a detailed description on how to create Castor Strings. Castor Strings are needed, because they tell Castor how to parse each line in the given log file. Because of this, Castor can parse any formatted log file as long as the corresponding Castor String is provided.
+Please read the [castor_example.conf](https://github.com/mlaikhram/Castor/blob/master/castor_example.conf) for a detailed description on how to create Castor Strings. Castor Strings are needed, because they tell Castor how to parse each line in the given log file. Because of this, Castor can parse any formatted log file as long as the corresponding Castor String is provided.
 
 Usage (Directly from the Castor `help` command)
 
