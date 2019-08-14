@@ -36,7 +36,7 @@ Usage (Directly from the Castor `help` command)
 
 `<field name> values` Display all values stored under field name in current dam
 
-`timeline <date field>` Interactively generate an activity report based on <date field>
+`timeline <date field>` Interactively generate an activity report based on date field
 
 `sql` Open sql command line to run sql queries
 
